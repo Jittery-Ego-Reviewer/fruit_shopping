@@ -120,7 +120,7 @@
         
         <!-- Header area -->
         <div class="bg-white/60 text-center py-4 border-b border-white/50 shadow-sm relative z-20 shrink-0">
-            <h1 class="text-3xl md:text-4xl font-bold text-gray-800 tracking-wide drop-shadow-sm">🛒 開心去購物 <span class="text-2xl">📝</span></h1>
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800 tracking-wide drop-shadow-sm">🛒 購物去 <span class="text-2xl">📝</span></h1>
         </div>
 
         <!-- Content Area: Parent container now locked, children manage their own scroll -->
@@ -168,9 +168,9 @@
                     </div>
                     
                     <!-- Drop Zone (Moved closely to items) -->
-                    <div id="cart-dropzone" class="w-16 h-16 md:w-full md:aspect-square md:max-w-[200px] bg-blue-50 rounded-2xl border-4 border-dashed border-blue-300 flex items-center justify-center text-3xl md:text-7xl shadow-inner transition-all relative cursor-pointer mx-2 md:mx-0 md:mt-2 shrink-0">
+                    <div id="cart-dropzone" class="w-24 h-24 md:w-full md:aspect-square md:max-w-[240px] bg-blue-50 rounded-2xl border-4 border-dashed border-blue-400 flex items-center justify-center text-5xl md:text-8xl shadow-inner transition-all relative cursor-pointer mx-2 md:mx-0 md:mt-2 shrink-0 hover:bg-blue-100">
                         🛒
-                        <div class="absolute inset-0 flex items-center justify-center text-[10px] md:text-sm font-bold text-blue-400/50 pointer-events-none opacity-0 md:hover:opacity-100 transition-opacity">
+                        <div class="absolute inset-0 flex items-center justify-center text-[12px] md:text-base font-bold text-blue-500/60 pointer-events-none opacity-0 md:hover:opacity-100 transition-opacity">
                             拉到這裡
                         </div>
                     </div>
@@ -229,7 +229,7 @@
         ].map(item => ({
             ...item,
             name: item.file.split('.')[0],
-            path: `水果/${item.file}`
+            path: `images/${item.file}`
         }));
 
         // State variables
@@ -461,7 +461,7 @@
             // Add mini icon to cart preview with object-contain
             const miniIcon = document.createElement('div');
             miniIcon.className = "w-10 h-10 md:w-12 md:h-12 animate-pop-in shrink-0";
-            miniIcon.innerHTML = `<img src="水果/${file}" onerror="handleImageError(this, '${fallback}')" class="w-full h-full object-contain rounded-md shadow-sm bg-white p-1 border border-gray-100" alt="${name}">`;
+            miniIcon.innerHTML = `<img src="images/${file}" onerror="handleImageError(this, '${fallback}')" class="w-full h-full object-contain rounded-md shadow-sm bg-white p-1 border border-gray-100" alt="${name}">`;
             cartItemsPreview.appendChild(miniIcon);
 
             // Animate cart
@@ -508,7 +508,7 @@
                 collectedItems.forEach(item => {
                     rDetails.innerHTML += `
                         <div class="flex flex-col items-center bg-white p-2 rounded-lg shadow-sm border border-green-100">
-                             <div class="w-12 h-12 mb-1"><img src="水果/${item.file}" onerror="handleImageError(this, '${item.fallback}')" class="w-full h-full object-contain"></div>
+                             <div class="w-12 h-12 mb-1"><img src="images/${item.file}" onerror="handleImageError(this, '${item.fallback}')" class="w-full h-full object-contain"></div>
                              <span class="text-sm font-bold text-green-700">${item.name}</span>
                         </div>
                     `;
