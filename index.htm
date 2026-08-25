@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>購物去 - 水果篇</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    
+    <script src="https://unpkg.com/drag-drop-touch@1.0.2/DragDropTouch.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            light: '#fdfbfb',
+                            dark: '#ebedee'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Comic Sans MS"', '"Chalkboard SE"', '"Noto Sans TC"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            min-height: 100vh;
+            touch-action: manipulation; /* Improves touch behavior on mobile */
+            overflow-x: hidden;
+        }
+
+        /* Shopping List Paper Effect */
+        .paper {
+            background-color: #fff;
+            background-image: 
+                linear-gradient(90deg, transparent 79px, #abced4 79px, #abced4 81px, transparent 81px),
+                linear-gradient(#eee .1em, transparent .1em);
+            background-size: 100% 1.2em;
+            padding: 2rem 2rem 2rem 6rem; /* Left padding for the red line */
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        
+        .paper::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 5rem;
+            height: 100%;
+            width: 2px;
+            background-color: rgba(255, 100, 100, 0.4);
+        }
+
+        /* Animations */
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        @keyframes bounceGently {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes pulseCart {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+
+        .animate-pop-in { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        .animate-bounce-gently { animation: bounceGently 3s infinite ease-in-out; }
+        .animate-pulse-cart { animation: pulseCart 0.3s ease-in-out; }
+        .animate-shake { animation: shake 0.4s ease-in-out; }
+
+        /* Drag and Drop utility classes */
+        .dragging {
+            opacity: 0.5;
+            transform: scale(1.05);
+        }
+        .drag-over {
+            background-color: rgba(255, 255, 255, 0.6);
+            border: 4px dashed #ff9a9e;
+            transform: scale(1.05);
+        }
+        
+        /* Custom Scrollbar for better UX */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05); 
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.6); 
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(156, 163, 175, 0.9); 
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center p-2 md:p-4">
+
+    <div id="app" class="w-full max-w-4xl bg-white/40 backdrop-blur-md rounded-3xl shadow-2xl border border-white/50 overflow-hidden relative flex flex-col h-[95dvh] max-h-[900px]">
+        
+        <!-- Header area -->
+        <div class="bg-white/60 text-center py-4 border-b border-white/50 shadow-sm relative z-20 shrink-0">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800 tracking-wide drop-shadow-sm">🛒 開心去購物 <span class="text-2xl">📝</span></h1>
+        </div>
+
+        <!-- Content Area: Parent container now locked, children manage their own scroll -->
+        <div class="flex-grow overflow-hidden p-2 md:p-6 relative flex flex-col w-full h-full">
+            
+            <div id="screen-start" class="w-full h-full max-w-md mx-auto flex flex-col items-center justify-center animate-pop-in py-4 overflow-y-auto custom-scrollbar">
+                <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8 w-full text-center my-auto">
+                    <h2 class="text-2xl font-bold text-gray-700 mb-6">準備去超級市場啦！</h2>
+                    
+                    <div class="mb-8">
+                        <label for="item-count" class="block text-lg text-gray-600 mb-3 font-semibold">你要記住幾多樣水果？</label>
+                        <div class="flex items-center justify-center space-x-4">
+                            <button id="btn-decrease" class="w-12 h-12 rounded-full bg-red-100 text-red-500 text-2xl font-bold shadow-md hover:bg-red-200 hover:scale-105 transition-transform active:scale-95">-</button>
+                            <span id="display-count" class="text-4xl font-black text-gray-800 w-12 text-center">3</span>
+                            <button id="btn-increase" class="w-12 h-12 rounded-full bg-green-100 text-green-500 text-2xl font-bold shadow-md hover:bg-green-200 hover:scale-105 transition-transform active:scale-95">+</button>
+                        </div>
+                    </div>
+
+                    <button id="btn-start" class="w-full py-4 rounded-xl bg-gradient-to-r from-blue-400 to-indigo-500 text-white text-2xl font-bold shadow-lg hover:shadow-xl hover:from-blue-500 hover:to-indigo-600 transition-all transform hover:-translate-y-1 active:translate-y-0">
+                        開始遊戲 🚀
+                    </button>
+                </div>
+            </div>
+
+            <div id="screen-memorize" class="hidden w-full h-full max-w-md mx-auto flex-col items-center justify-start md:justify-center animate-pop-in py-4 overflow-y-auto custom-scrollbar">
+                <div class="paper w-full max-w-sm mb-6 mt-4 md:mt-0">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-4 pb-2 border-b-2 border-gray-300">購物清單</h2>
+                    <ul id="shopping-list" class="space-y-4 text-2xl font-bold text-gray-700">
+                        <!-- List items will be injected here via JS -->
+                    </ul>
+                </div>
+                
+                <button id="btn-ready" class="w-full max-w-sm py-4 rounded-xl bg-gradient-to-r from-green-400 to-emerald-500 text-white text-2xl font-bold shadow-lg hover:shadow-xl hover:from-green-500 hover:to-emerald-600 transition-all transform hover:-translate-y-1 active:translate-y-0 shrink-0 mb-8">
+                    我記住啦！👀
+                </button>
+            </div>
+
+            <div id="screen-play" class="hidden w-full h-full flex-col md:flex-row gap-2 md:gap-4 animate-pop-in overflow-hidden pb-2">
+                
+                <!-- Left/Top: Cart Area (Always Visible Header Bar on Mobile) -->
+                <div class="w-full md:w-1/3 flex flex-row md:flex-col items-center justify-between bg-white/90 backdrop-blur-md rounded-2xl p-2 md:p-4 shadow-lg border border-white shrink-0 z-20">
+                    <div class="text-center w-1/4 md:w-full flex flex-col justify-center">
+                        <h2 class="text-sm md:text-2xl font-bold text-gray-700 leading-tight">你的購物車</h2>
+                        <p class="text-gray-500 text-xs md:text-base font-semibold mt-1" id="cart-counter">已選: 0 / 3</p>
+                    </div>
+                    
+                    <!-- Drop Zone (Moved closely to items) -->
+                    <div id="cart-dropzone" class="w-16 h-16 md:w-full md:aspect-square md:max-w-[200px] bg-blue-50 rounded-2xl border-4 border-dashed border-blue-300 flex items-center justify-center text-3xl md:text-7xl shadow-inner transition-all relative cursor-pointer mx-2 md:mx-0 md:mt-2 shrink-0">
+                        🛒
+                        <div class="absolute inset-0 flex items-center justify-center text-[10px] md:text-sm font-bold text-blue-400/50 pointer-events-none opacity-0 md:hover:opacity-100 transition-opacity">
+                            拉到這裡
+                        </div>
+                    </div>
+
+                    <!-- Items inside cart preview (Horizontal scroll on mobile) -->
+                    <div id="cart-items-preview" class="flex-1 md:w-full md:mt-4 flex flex-row md:flex-wrap gap-1 md:gap-2 justify-start md:justify-center overflow-x-auto md:overflow-y-auto max-h-[64px] md:max-h-[250px] custom-scrollbar p-1 items-center">
+                        <!-- Mini icons of dropped items will appear here -->
+                    </div>
+                </div>
+
+                <!-- Right/Bottom: Shop Items Grid (Scrollable Container) -->
+                <div class="w-full md:w-2/3 bg-white/70 rounded-2xl p-2 md:p-4 shadow-lg border border-white flex flex-col flex-grow overflow-hidden">
+                    <h2 class="text-base md:text-xl font-bold text-gray-700 mb-2 text-center shrink-0">請選擇水果 (點擊或拖入 🛒)</h2>
+                    <div id="shop-items-grid" class="grid grid-cols-3 sm:grid-cols-4 gap-2 md:gap-4 pb-2 px-1 overflow-y-auto custom-scrollbar h-full content-start">
+                        <!-- Shop items injected via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div id="screen-result" class="hidden w-full h-full max-w-md mx-auto flex-col items-center justify-center animate-pop-in py-4 overflow-y-auto custom-scrollbar">
+                <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8 w-full text-center my-auto">
+                    <div id="result-icon" class="text-7xl md:text-8xl mb-4 animate-bounce-gently">🌟</div>
+                    <h2 id="result-title" class="text-3xl font-bold text-gray-800 mb-4">太棒了！</h2>
+                    <p id="result-message" class="text-lg md:text-xl text-gray-600 mb-8 font-semibold">你買齊了所有東西！</p>
+                    
+                    <div id="result-details" class="flex flex-wrap justify-center gap-2 md:gap-3 mb-8 bg-gray-50 p-4 rounded-xl border">
+                        <!-- Correct items shown here -->
+                    </div>
+
+                    <button id="btn-restart" class="w-full py-4 rounded-xl bg-gradient-to-r from-purple-400 to-pink-500 text-white text-2xl font-bold shadow-lg hover:shadow-xl hover:from-purple-500 hover:to-pink-600 transition-all transform hover:-translate-y-1 active:translate-y-0">
+                        再玩一次 🔄
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Game Configuration and Data
+        // The word is extracted from the filename before the dot.
+        // Emojis are provided as robust fallbacks if the local folder isn't set up.
+        const allFruits = [
+            { file: '蘋果.png', fallback: '🍎' },
+            { file: '香蕉.png', fallback: '🍌' },
+            { file: '橙.png', fallback: '🍊' },
+            { file: '葡萄.png', fallback: '🍇' },
+            { file: '士多啤梨.png', fallback: '🍓' },
+            { file: '西瓜.png', fallback: '🍉' },
+            { file: '芒果.png', fallback: '🥭' },
+            { file: '梨.png', fallback: '🍐' },
+            { file: '桃.png', fallback: '🍑' },
+            { file: '奇異果.png', fallback: '🥝' },
+            { file: '菠蘿.png', fallback: '🍍' },
+            { file: '車厘子.png', fallback: '🍒' }
+        ].map(item => ({
+            ...item,
+            name: item.file.split('.')[0],
+            path: `水果/${item.file}`
+        }));
+
+        // State variables
+        let targetCount = 3;
+        let targetItems = [];
+        let collectedItems = [];
+        let synth = null;
+
+        // DOM Elements
+        const screens = {
+            start: document.getElementById('screen-start'),
+            memorize: document.getElementById('screen-memorize'),
+            play: document.getElementById('screen-play'),
+            result: document.getElementById('screen-result')
+        };
+
+        const displayCount = document.getElementById('display-count');
+        const cartCounter = document.getElementById('cart-counter');
+        const cartDropzone = document.getElementById('cart-dropzone');
+        const cartItemsPreview = document.getElementById('cart-items-preview');
+        const shopItemsGrid = document.getElementById('shop-items-grid');
+        const shoppingList = document.getElementById('shopping-list');
+        
+        function initAudio() {
+            if (!synth) {
+                // Synthesizer setup for fun, non-intrusive sound effects
+                synth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "sine" },
+                    envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 1 }
+                }).toDestination();
+                Tone.start();
+            }
+        }
+
+        const sounds = {
+            click: () => synth?.triggerAttackRelease("C5", "16n"),
+            pop: () => synth?.triggerAttackRelease("F5", "32n"),
+            drop: () => synth?.triggerAttackRelease("A5", "16n"),
+            error: () => synth?.triggerAttackRelease(["C4", "Eb4"], "8n"),
+            success: () => {
+                const now = Tone.now();
+                synth?.triggerAttackRelease("C5", "8n", now);
+                synth?.triggerAttackRelease("E5", "8n", now + 0.1);
+                synth?.triggerAttackRelease("G5", "8n", now + 0.2);
+                synth?.triggerAttackRelease("C6", "4n", now + 0.3);
+            },
+            fail: () => {
+                const now = Tone.now();
+                synth?.triggerAttackRelease("G4", "4n", now);
+                synth?.triggerAttackRelease("Eb4", "4n", now + 0.3);
+                synth?.triggerAttackRelease("C4", "2n", now + 0.6);
+            }
+        };
+
+        // If the '水果' folder doesn't exist, this makes sure the game is still pretty and playable
+        window.handleImageError = function(imgElement, emoji) {
+            imgElement.outerHTML = `
+                <div class="w-full h-full flex items-center justify-center text-4xl sm:text-5xl bg-gradient-to-br from-gray-50 to-gray-200 rounded-xl shadow-inner border border-gray-100">
+                    ${emoji}
+                </div>`;
+        };
+
+        function showScreen(screenName) {
+            Object.values(screens).forEach(s => {
+                s.classList.add('hidden');
+                s.classList.remove('flex');
+            });
+            screens[screenName].classList.remove('hidden');
+            screens[screenName].classList.add('flex');
+        }
+
+        // Shuffle utility
+        function shuffleArray(array) {
+            let curId = array.length;
+            while (0 !== curId) {
+                let randId = Math.floor(Math.random() * curId);
+                curId -= 1;
+                let tmp = array[curId];
+                array[curId] = array[randId];
+                array[randId] = tmp;
+            }
+            return array;
+        }
+
+        document.getElementById('btn-decrease').addEventListener('click', () => {
+            initAudio(); sounds.click();
+            if (targetCount > 2) {
+                targetCount--;
+                displayCount.innerText = targetCount;
+            }
+        });
+
+        document.getElementById('btn-increase').addEventListener('click', () => {
+            initAudio(); sounds.click();
+            if (targetCount < 8) {
+                targetCount++;
+                displayCount.innerText = targetCount;
+            }
+        });
+
+        document.getElementById('btn-start').addEventListener('click', () => {
+            initAudio(); sounds.pop();
+            startGame();
+        });
+
+        function startGame() {
+            collectedItems = [];
+            
+            // Randomly select target items
+            let shuffled = shuffleArray([...allFruits]);
+            targetItems = shuffled.slice(0, targetCount);
+            
+            // Populate Shopping List
+            shoppingList.innerHTML = '';
+            targetItems.forEach((item, index) => {
+                const li = document.createElement('li');
+                li.className = "flex items-center space-x-4 opacity-0";
+                li.style.animation = `popIn 0.3s ease forwards ${index * 0.1}s`;
+                li.innerHTML = `
+                    <div class="w-12 h-12 flex-shrink-0 relative overflow-hidden rounded-md border border-gray-200 bg-white">
+                        <img src="${item.path}" onerror="handleImageError(this, '${item.fallback}')" class="w-full h-full object-cover p-1" alt="${item.name}">
+                    </div>
+                    <span class="tracking-widest">${item.name}</span>
+                `;
+                shoppingList.appendChild(li);
+            });
+
+            showScreen('memorize');
+        }
+
+        document.getElementById('btn-ready').addEventListener('click', () => {
+            sounds.click();
+            setupPlayScreen();
+            showScreen('play');
+        });
+
+        function setupPlayScreen() {
+            cartCounter.innerText = `已選: 0 / ${targetCount}`;
+            cartItemsPreview.innerHTML = '';
+            cartDropzone.classList.remove('border-green-400', 'bg-green-50');
+            cartDropzone.classList.add('border-blue-300', 'bg-blue-50');
+            
+            // Create the shop grid (all fruits shuffled)
+            const playItems = shuffleArray([...allFruits]);
+            shopItemsGrid.innerHTML = '';
+
+            playItems.forEach(item => {
+                const itemEl = document.createElement('div');
+                itemEl.className = "bg-white p-2 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center cursor-pointer hover:shadow-md hover:scale-105 transition-all transform active:scale-95 touch-manipulation";
+                itemEl.draggable = true;
+                itemEl.dataset.name = item.name;
+                itemEl.dataset.file = item.file;
+                itemEl.dataset.fallback = item.fallback;
+
+                itemEl.innerHTML = `
+                    <div class="w-16 h-16 sm:w-20 sm:h-20 pointer-events-none mb-2">
+                        <img src="${item.path}" onerror="handleImageError(this, '${item.fallback}')" class="w-full h-full object-contain drop-shadow-sm" alt="${item.name}">
+                    </div>
+                    <span class="text-sm sm:text-base font-bold text-gray-700 pointer-events-none">${item.name}</span>
+                `;
+
+                // Fix mobile scrolling by explicitly allowing vertical touch pan on draggable items
+                itemEl.style.touchAction = 'pan-y';
+
+                // Drag Events
+                itemEl.addEventListener('dragstart', handleDragStart);
+                itemEl.addEventListener('dragend', handleDragEnd);
+                
+                // Click Event for Accessibility / Touch alternative
+                itemEl.addEventListener('click', () => handleItemSelect(itemEl));
+
+                shopItemsGrid.appendChild(itemEl);
+            });
+        }
+
+        // Drag and Drop Handlers
+        function handleDragStart(e) {
+            e.dataTransfer.setData('text/plain', e.target.dataset.name);
+            e.dataTransfer.effectAllowed = 'move';
+            setTimeout(() => {
+                e.target.classList.add('dragging');
+            }, 0);
+            sounds.pop();
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+        }
+
+        cartDropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            cartDropzone.classList.add('drag-over');
+        });
+
+        cartDropzone.addEventListener('dragleave', (e) => {
+            cartDropzone.classList.remove('drag-over');
+        });
+
+        cartDropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            cartDropzone.classList.remove('drag-over');
+            const itemName = e.dataTransfer.getData('text/plain');
+            
+            // Find the element in the grid
+            const itemEl = document.querySelector(`.dragging`) || document.querySelector(`[data-name="${itemName}"]`);
+            if (itemEl && !itemEl.classList.contains('opacity-30')) {
+                handleItemSelect(itemEl);
+            }
+        });
+
+        function handleItemSelect(itemElement) {
+            // Prevent double selection
+            if(itemElement.classList.contains('opacity-30') || collectedItems.length >= targetCount) return;
+
+            const name = itemElement.dataset.name;
+            const file = itemElement.dataset.file;
+            const fallback = itemElement.dataset.fallback;
+
+            // Visual feedback
+            itemElement.classList.add('opacity-30', 'scale-95', 'pointer-events-none');
+            
+            // Add to collected
+            collectedItems.push({name, file, fallback});
+            
+            // Update UI
+            cartCounter.innerText = `已選: ${collectedItems.length} / ${targetCount}`;
+            
+            // Add mini icon to cart preview with object-contain
+            const miniIcon = document.createElement('div');
+            miniIcon.className = "w-10 h-10 md:w-12 md:h-12 animate-pop-in shrink-0";
+            miniIcon.innerHTML = `<img src="水果/${file}" onerror="handleImageError(this, '${fallback}')" class="w-full h-full object-contain rounded-md shadow-sm bg-white p-1 border border-gray-100" alt="${name}">`;
+            cartItemsPreview.appendChild(miniIcon);
+
+            // Animate cart
+            cartDropzone.classList.remove('animate-pulse-cart');
+            void cartDropzone.offsetWidth; // trigger reflow
+            cartDropzone.classList.add('animate-pulse-cart');
+
+            sounds.drop();
+
+            // Check completion
+            if (collectedItems.length === targetCount) {
+                setTimeout(evaluateGame, 500);
+            }
+        }
+
+        function evaluateGame() {
+            // Check if collected items exactly match target items (regardless of order)
+            const targetNames = targetItems.map(i => i.name).sort();
+            const collectedNames = collectedItems.map(i => i.name).sort();
+            
+            let isWin = true;
+            for(let i = 0; i < targetNames.length; i++) {
+                if(targetNames[i] !== collectedNames[i]) {
+                    isWin = false;
+                    break;
+                }
+            }
+
+            const rIcon = document.getElementById('result-icon');
+            const rTitle = document.getElementById('result-title');
+            const rMsg = document.getElementById('result-message');
+            const rDetails = document.getElementById('result-details');
+            
+            rDetails.innerHTML = '';
+
+            if (isWin) {
+                sounds.success();
+                rIcon.innerText = "🏆";
+                rTitle.innerText = "太棒了！";
+                rTitle.className = "text-4xl font-bold text-green-500 mb-4";
+                rMsg.innerText = "你買對了清單上的所有東西！";
+                
+                // Show collected items beautifully
+                collectedItems.forEach(item => {
+                    rDetails.innerHTML += `
+                        <div class="flex flex-col items-center bg-white p-2 rounded-lg shadow-sm border border-green-100">
+                             <div class="w-12 h-12 mb-1"><img src="水果/${item.file}" onerror="handleImageError(this, '${item.fallback}')" class="w-full h-full object-contain"></div>
+                             <span class="text-sm font-bold text-green-700">${item.name}</span>
+                        </div>
+                    `;
+                });
+            } else {
+                sounds.fail();
+                rIcon.innerText = "🤔";
+                rTitle.innerText = "哎呀！";
+                rTitle.className = "text-4xl font-bold text-red-500 mb-4";
+                rMsg.innerText = "買錯了一些東西，我們再試一次吧！";
+                
+                rDetails.innerHTML = `<div class="w-full text-center mb-2 font-bold text-gray-500">原來的清單是：</div>`;
+                targetItems.forEach(item => {
+                    rDetails.innerHTML += `
+                        <div class="flex flex-col items-center bg-white p-2 rounded-lg shadow-sm border border-red-100">
+                             <div class="w-12 h-12 mb-1"><img src="${item.path}" onerror="handleImageError(this, '${item.fallback}')" class="w-full h-full object-contain"></div>
+                             <span class="text-sm font-bold text-red-700">${item.name}</span>
+                        </div>
+                    `;
+                });
+            }
+
+            showScreen('result');
+        }
+
+        document.getElementById('btn-restart').addEventListener('click', () => {
+            sounds.pop();
+            showScreen('start');
+        });
+
+    </script>
+</body>
+</html>
